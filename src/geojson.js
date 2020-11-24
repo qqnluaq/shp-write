@@ -1,32 +1,43 @@
-module.exports.point = justType('Point', 'POINT');
-module.exports.line = justType('LineString', 'POLYLINE');
-module.exports.polygon = justType('Polygon', 'POLYGON');
+module.exports.point = function ( geojson ) {
+    fs = geojson.features.filter( function ( f ) {
+        return f.geometry.type == 'Point' || f.geometry.type == 'MultiPoint'
+    } )
 
-function justType(type, TYPE) {
-    return function(gj) {
-        var oftype = gj.features.filter(isType(type));
-        return {
-            geometries: (TYPE === 'POLYGON' || TYPE === 'POLYLINE') ? [oftype.map(justCoords)] : oftype.map(justCoords),
-            properties: oftype.map(justProps),
-            type: TYPE
-        };
-    };
-}
-
-function justCoords(t) {
-    if (t.geometry.coordinates[0] !== undefined &&
-        t.geometry.coordinates[0][0] !== undefined &&
-        t.geometry.coordinates[0][0][0] !== undefined) {
-        return t.geometry.coordinates[0];
-    } else {
-        return t.geometry.coordinates;
+    return {
+        type: 'POINT',
+        geometries: fs.reduce( function ( acc, f ) { 
+            return f.geometry.type == 'Point' 
+                ? acc.concat( [ f.geometry.coordinates ] )
+                : acc.concat( f.geometry.coordinates )
+        }, [] ),
+        properties: fs.reduce( function ( acc, f ) { 
+            return f.geometry.type == 'Point' 
+                ? acc.concat( f.properties )
+                : acc.concat( f.geometry.coordinates.map( function () { return f.properties } ) )
+        }, [] ),
     }
 }
 
-function justProps(t) {
-    return t.properties;
+module.exports.line = function ( geojson ) {
+    fs = geojson.features.filter( function ( f ) {
+        return f.geometry.type == 'LineString' || f.geometry.type == 'MultiLineString'
+    } )
+
+    return {
+        type: 'POLYLINE',
+        geometries: fs.map( f => [ f.geometry.coordinates ] ),
+        properties: fs.map( f => f.properties ),
+    }
 }
 
-function isType(t) {
-    return function(f) { return f.geometry.type === t; };
+module.exports.polygon = function ( geojson ) {
+    fs = geojson.features.filter( function ( f ) {
+        return f.geometry.type == 'Polygon' || f.geometry.type == 'MultiPolygon'
+    } )
+
+    return {
+        type: 'POLYGON',
+        geometries: fs.map( f => f.geometry.coordinates ),
+        properties: fs.map( f => f.properties ),
+    }
 }
